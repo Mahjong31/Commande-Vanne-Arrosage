@@ -9,10 +9,10 @@ const int limiteSolHumide = 330; // limiteSolHumide sperieure à 600  il y aura 
 byte nombreArrosages = 9; // cette valeur qui ne sera jamais atteinte nous permet de fixer suivant l'humidit� du sol et uniquement la premiere fois le nombre exact darroges compris entre 1 et 3  pour chaque  nuit:
 
 // Variables fixes:
-int tempsEntre2TestSondeDHumidite = 180 ; // Sonde Humidité un test toutes les 3H:
+int tempsEntre2TestSondeDHumidite = 180 ; // 240 Minutes Max; Sonde Humidité un test toutes les 3H:
 int tempsEntre2TestLDR = 180 ; // LDR un test toutes les 3 H:
-int tempsEntre2Nuits = 600; // Après le dernier Arrosage on attend 10 H:
-int limitesensorNuitValue = 850; // Limite au dessu de laquelle la LDR mesure l'obscurité:
+int tempsEntre2Nuits = 600; // 10Hx60Mn; Après le dernier Arrosage on attend 10 H:
+int limiteSensorNuitValue = 850; // Limite au dessu de laquelle la LDR mesure l'obscurité:
 byte niveauSondeHumiditeValue = 0;
 byte nombrePetitsArrosages = 0; // En fonction de la valeur de la sonde d'humidité, il peut y avoir plusieurs arrosages sucessifs entrecoupés de pauses: 
 unsigned long dureeArrosage = 0; //Contiendra la dur�e en secondes effectivement utilis�e pour l'arrosage:
@@ -104,7 +104,7 @@ void loop() {
       }
       else {
         // La Nuit et sol humide, pas d'arrosage, et test des sondes d'humidit� toutes les 4 heures :
-        dureePause =  (pauseEntreDeuxArrosages * 2 * pauseMultiplicateur); // tempsEntre2TestSondeDHumidite  180 remplacer par une constante  ************
+        dureePause =  (pauseEntreDeuxArrosages * tempsEntre2TestSondeDHumidite * pauseMultiplicateur); //   180 remplacer par une constante  ************
         transformersoixante(dureePause);
         Serial.println("  ");
         Serial.print("       Nuit et sol encore humide, entre 2 tests une pause de:    ");
@@ -113,7 +113,7 @@ void loop() {
     } 
     else {
       // Test du photoresistor, LDR, le jour, toutes les 4 heures:
-      dureePause =  (pauseEntreDeuxArrosages * 2 * pauseMultiplicateur); // tempsEntre2TestLDR  180 remplacer par une constante  ************
+      dureePause =  (pauseEntreDeuxArrosages * tempsEntre2TestLDR * pauseMultiplicateur); //   180 remplacer par une constante  ************
       // Mais en abcense d'une premi�re d�tection de la  nuit:
       dejaNuit(); // Si c'est le premier jour, on fera  1 heure de pause entre deux tests, si non on garde la valeur pr�c�dente:
 
@@ -153,7 +153,7 @@ void testePresenceNuit() {
   sensorNuitValue = analogRead(A0);
   delay(500);
   digitalWrite(photoresistor, LOW);    // Power photoresistor OFF:
-  if (sensorNuitValue > limitesensorNuitValue) { // S'il fait nuit, un faible �clairement implique une grande valeur proche de 850 :
+  if (sensorNuitValue > limiteSensorNuitValue) { // 850; S'il fait nuit, un faible �clairement implique une grande valeur proche de 850 :
     itsNight = 1; // Si la nuit a �t� detect�e:
     if (nightTrue != 1) {
       nightTrue = 1; // D�s la premiere detection de la nuit, on suprime pour les journ�es suivantes la pause de 1 heure le jour;
@@ -314,15 +314,15 @@ void sequenceDArrosage() { // Adapte la durée d'arrosage et du nombre d'arrosag
     // Attribue une séquence d'arrosages intermédiaires pour chaque niveau de la valeur lue sur la sonde d'humidité:
     switch (niveauSondeHumiditeValue) { // Chaque case doit avoir obligatoirement sa fonction sequenceArrosageNiveau définie:
       case 1:
-        nombreArrosagesIntermediaires = 2;
+        nombreArrosagesIntermediaires = 3;
         sequenceArrosageA1Niveau1(nombreArrosagesIntermediaires); // 1 pour un seul arrosage intermédiaire:
         break;
       case 2:
-        nombreArrosagesIntermediaires = 4;
+        nombreArrosagesIntermediaires = 5;
         sequenceArrosageA1Niveau2(nombreArrosagesIntermediaires); // 3 pour trois  arrosages intermédiaires:
         break;
       case 3:
-        nombreArrosagesIntermediaires = 5;
+        nombreArrosagesIntermediaires = 6;
         sequenceArrosageA1Niveau3(nombreArrosagesIntermediaires); // 5 pour cinq  arrosages intermédiaires:
         break;
     }
@@ -331,15 +331,15 @@ void sequenceDArrosage() { // Adapte la durée d'arrosage et du nombre d'arrosag
 
     switch (niveauSondeHumiditeValue) {// La sonde de plus grande valeur est la sondeA1:
       case 1:
-        nombreArrosagesIntermediaires = 2;
+        nombreArrosagesIntermediaires = 3;
         sequenceArrosageA2Niveau1(nombreArrosagesIntermediaires); // 1 pour un seul arrosage intermédiaire:
         break;
       case 2:
-        nombreArrosagesIntermediaires = 4;
+        nombreArrosagesIntermediaires = 5;
         sequenceArrosageA2Niveau2(nombreArrosagesIntermediaires); // 3 pour trois  arrosages intermédiaires:
         break;
       case 3:
-        nombreArrosagesIntermediaires = 5;
+        nombreArrosagesIntermediaires = 6;
         sequenceArrosageA2Niveau3(nombreArrosagesIntermediaires); // 5 pour cinq  arrosages intermédiaires:
         break;
     }
@@ -350,11 +350,14 @@ void sequenceArrosageA1Niveau1(byte cp){
   if (nombrePetitsArrosages < cp){// Ce sont les coeficients determinant la Duree d'Arrosage et la Pause qui suit:
     switch(nombrePetitsArrosages){
       case 0:
-        tempsDArrosage(7,360); // 7 fois le comptenu de la variable dureePourArrosage et 6 fois pauseEntreDeuxArrosages:
+        tempsDArrosage(4,60); // 7 fois le comptenu de la variable dureePourArrosage et 6 fois pauseEntreDeuxArrosages:
         break;
       case 1:
-        tempsDArrosage(5,60);
+        tempsDArrosage(4,480);
         break;
+      case 2:
+        tempsDArrosage(5,1);
+        break;  
       default:
         break;
     }
@@ -366,17 +369,20 @@ void sequenceArrosageA1Niveau2(byte cp){
     // Serial.println(nombrePetitsArrosages); // *******************************************
     switch(nombrePetitsArrosages){
       case 0:
-        tempsDArrosage(3,20);
+        tempsDArrosage(4,20);
         break;
       case 1:
-        tempsDArrosage(4,60);
+        tempsDArrosage(3,60);
         break;
       case 2:
-        tempsDArrosage(4,360);
+        tempsDArrosage(4,480);
         break;
       case 3:
         tempsDArrosage(5,60);
         break;
+      case 4:
+        tempsDArrosage(3,1);
+        break;  
       default:
     
         break;  
@@ -391,16 +397,19 @@ void sequenceArrosageA1Niveau3(byte cp){
         tempsDArrosage(3,20);
         break;
       case 1:
-        tempsDArrosage(4,30);
+        tempsDArrosage(2,45);
         break;
       case 2:
         tempsDArrosage(3,90);
         break;
       case 3:
-        tempsDArrosage(5,360);
+        tempsDArrosage(3,480);
         break;
       case 4:
-        tempsDArrosage(5,60); 
+        tempsDArrosage(4,60); 
+        break;
+      case 5:
+        tempsDArrosage(3,1);
         break; 
       default:
         break;  
@@ -412,10 +421,13 @@ void sequenceArrosageA2Niveau1(byte cp){
   if (nombrePetitsArrosages < cp){// Ce sont les coeficients determinant la Duree d'Arrosage et la Pause qui suit:
     switch(nombrePetitsArrosages){
       case 0:
-        tempsDArrosage(9,360); // 7 fois le comptenu de la variable dureePourArrosage et 6 fois pauseEntreDeuxArrosages:
+        tempsDArrosage(4,60); // 7 fois le comptenu de la variable dureePourArrosage et 6 fois pauseEntreDeuxArrosages:
         break;
       case 1:
-        tempsDArrosage(5,60);
+        tempsDArrosage(4,480);
+        break;
+      case 2:
+        tempsDArrosage(5,1);
         break;  
       default:
         break;
@@ -427,16 +439,19 @@ void sequenceArrosageA2Niveau2(byte cp){
   if (nombrePetitsArrosages < cp){
     switch(nombrePetitsArrosages){
       case 0:
-        tempsDArrosage(3,20);
+        tempsDArrosage(4,20);
         break;
       case 1:
-        tempsDArrosage(4,45);
+        tempsDArrosage(3,60);
         break;
       case 2:
-        tempsDArrosage(4,360);
+        tempsDArrosage(4,480);
         break;
       case 3:
         tempsDArrosage(5,60);
+        break;
+      case 4:
+        tempsDArrosage(3,1);
         break;  
       default:
         break;  
@@ -451,24 +466,27 @@ void sequenceArrosageA2Niveau3(byte cp){
         tempsDArrosage(3,20);
         break;
       case 1:
-        tempsDArrosage(4,45);
+        tempsDArrosage(2,45);
         break;
       case 2:
-        tempsDArrosage(4,60);
+        tempsDArrosage(3,90);
         break;
       case 3:
-        tempsDArrosage(3,360);
+        tempsDArrosage(3,480);
         break;
       case 4:
-        tempsDArrosage(5,60);
-        break;  
+        tempsDArrosage(4,60);
+        break;
+      case 5:
+        tempsDArrosage(3,1);
+        break;    
       default:
         break;  
     }
   }
 }
   
-void tempsDArrosage( byte coefDureearrosage, byte coefDureePause){ 
+void tempsDArrosage( byte coefDureearrosage, int coefDureePause){ 
   
   dureeArrosage = dureePourArrosage * coefDureearrosage ; // temps d'arrosage:
   dureePause =  (dureeArrosage + (pauseEntreDeuxArrosages * coefDureePause)); // Temps de pause pour arrosages successifs:
@@ -494,7 +512,7 @@ void affichageDonneesSondesHumidite(){
   Serial.print(sensorDHumiditeValueA2);
   // et la tention pr�sente aux bornes de la sonde A2:
   Serial.println("  ");
-  Serial.print("       Tention pr�sente aux bornes de la SondeA2 en volts:       ");
+  Serial.print("       La tention mesur�e aux bornes de la SondeA2 en volts:     ");
   Serial.print(voltageA2);
   Serial.println("  ");
 }
@@ -516,7 +534,7 @@ void relayOn() {
   else {
     // Si le nombre d'arrosages maximal à �t� atteint, on fait une pause de: (pauseEntreDeuxArrosages * 10):
     // Pour reprendre le test des sondes en fin de journée suivante:
-    dureePause =  (pauseEntreDeuxArrosages * 3 * pauseMultiplicateur); // tempsEntre2Nuits   600  10 heures:
+    dureePause =  (pauseEntreDeuxArrosages * tempsEntre2Nuits * pauseMultiplicateur); //    600  10 heures:
     transformersoixante(dureePause);
     Serial.println(" ");
     Serial.println("  -------------------------------------------------------------");
