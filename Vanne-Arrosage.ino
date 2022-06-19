@@ -1,16 +1,19 @@
 
 // Les deux variables suivantes sont � changer pour adapteer le temps d'ouveture et fermeture de l'electrovanne et le temps de pause avant nouveau cycle :
-
+byte aaa = 0;
+byte nombreArrosagesIntermediaires = 0;
 byte pauseMultiplicateur = 1;// Multiplie la variable " pauseEntreDeuxArrosages ":
-float pauseEntreDeuxArrosages = 60; // = 60: en minutes; 60 = 3600000 millisecondes:
-float dureePourArrosage = 1; // = 1: en minutes, - Dur�e initiale en minutes,il sert de base au calcul du temps effectif d'arrosage, celui-ci sera fonction du nombre d'arrosages d�ja effectu�s cette nuit:
-float dureeArrosage = 0; //Contiendra la dur�e en secondes effectivement utilis�e pour l'arrosage:
-const int limiteSolHumide = 600; // limiteSolHumide sperieure à 600  il y aura arrosage:
+float pauseEntreDeuxArrosages = 0.01; // = 60: en minutes; 60 = 3600000 millisecondes:
+float dureePourArrosage = 0.01; // = 1: en minutes, - Dur�e initiale en minutes,il sert de base au calcul du temps effectif d'arrosage, celui-ci sera fonction du nombre d'arrosages d�ja effectu�s cette nuit:
+const int limiteSolHumide = 330; // limiteSolHumide sperieure à 600  il y aura arrosage:
+byte nombreArrosages = 9; // cette valeur qui ne sera jamais atteinte nous permet de fixer suivant l'humidit� du sol et uniquement la premiere fois le nombre exact darroges compris entre 1 et 3  pour chaque  nuit:
 
 // Variables fixes:
-byte nombreArrosages = 9; // cette valeur qui ne sera jamais atteinte nous permet de fixer suivant l'humidit� du sol et uniquement la premiere fois le nombre exact darroges compris entre 1 et 3  pour chaque  nuit:
+byte niveauSondeHumiditeValue = 0;
+byte nombrePetitsArrosages = 0; // En fonction de la valeur de la sonde d'humidité, il peut y avoir plusieurs arrosages sucessifs entrecoupés de pauses: 
+int dureeArrosage = 0; //Contiendra la dur�e en secondes effectivement utilis�e pour l'arrosage:
 int compteurCyclesArrosage = 0; // Enregistre le nombre total d'Arrosages depuis le lancement du programme:
-byte compteurDArrosagesParNuit = 1; // Enregistre le nombre d'arrosages �ffectu�s dans la nuit:
+byte compteurDArrosagesParNuit = 0; // Enregistre le nombre d'arrosages �ffectu�s dans la nuit:
 int sondeDHumiditeA1 = 2; // Alim de la sonde d'humudit�e pin D2:
 int sondeDHumiditeA2 = 3; // Alim de la sonde d'humudit�e pin D3:
 int signalRelay = 10;  //Alim de du signal du relais Pin D10:
@@ -19,7 +22,7 @@ int sensorDHumiditeValueA1 = 0;// variable recevant la valeur de la sonde dhumid
 int sensorDHumiditeValueA2 = 0;// variable recevant la valeur de la sonde dhumidit�e:
 int sensorHumidValue = 0;// reçoit la plus grande valeur des deux sondes d'humiditée:
 int sensorNuitValue = 0; // variable recevant la valeur du photoresistor:
-float dureePause = 0;// Valeur qui contiendra un temps de pause servant �; rechercher s'il fait nuit, le delais entre deux arrosages sucsessifs, le long laps de temps apr�s le nombre maximum d'arrosages atteint:
+int dureePause = 0;// Valeur qui contiendra un temps de pause servant �; rechercher s'il fait nuit, le delais entre deux arrosages sucsessifs, le long laps de temps apr�s le nombre maximum d'arrosages atteint:
 int photoresistor = 13; //Alim du photoresistor pin D13 :
 bool itsNight = 0; // Apr�s le test du photoresistor sera mis � 0 ou 1: pour la nuit O/N:
 boolean nightTrue = 0; // Sera mis � 1 s'il y a d�tection de la nuit une premi�re fois:
@@ -50,7 +53,6 @@ void setup() {
   digitalWrite(signalRelay, LOW);  	// turn signalRelay OFF:
   // initialize serial communication at 9600 bits per second:
   Serial.begin(9600);
-
 }
 
 // Boucle sans fin:
@@ -61,11 +63,13 @@ void loop() {
 
   currentMillis = millis();
   
-  if ((compteurDArrosagesParNuit > nombreArrosages) && ((currentMillis - tempsfinArrosage) >= dureePause)) { //  Delais avant nouvel arrosage du lendemain (ici dureePause = 50400000=14-~1 heures, 43200000 = (3600000*12) = 12 heures):
-    compteurDArrosagesParNuit = 1; // Reinitialise a 0 la variable contenant le nombre d'arrosages permis dans la nouvelle journ�e:
+  if ((nombrePetitsArrosages >= nombreArrosagesIntermediaires) && ((currentMillis - tempsfinArrosage) >= dureePause)) { //  Delais avant nouvel arrosage du lendemain (ici dureePause = 50400000=14-~1 heures, 43200000 = (3600000*12) = 12 heures):
+
+    //compteurDArrosagesParNuit = 0; // Reinitialise a 0 la variable contenant le nombre d'arrosages permis dans la nouvelle journ�e:
     dureePause = 0; // (compteurDArrosagesParNuit �tant superieur � nombreArrosages) on �tabli une longue pause en sortant du "else" de la fonction relayON, en modifiant "dureePause = pauseApresXArrosages", ici on le remet 0 pour rentrer imediatement dans la boucle du "if" ci dessous:
     sondeA1A2 = 0; // sondeA1 < sondeA2:
-    nombreArrosages = 9; // Le nombre d'arrosages estait compris entre 1 et 3, on lui assigne le 9 pour rentrer dans le if de adapteNombreArrosages():
+    nombrePetitsArrosages = 0; // Si plusieurs petits arrosages successifs:
+    nombreArrosages = 9; // Le nombre d'arrosages estait compris entre 1 et 3, on lui assigne le 9 pour rentrer dans le if de niveauSondeDHumidite():
   }
 
   if ((vanneOpen == 0) && (currentMillis - tempsAuTestNuitMillis >= dureePause )) { //Si vanne ferm�e et l'intervale de test "dureePause" �coul�:
@@ -78,12 +82,12 @@ void loop() {
 
       lectureSondesHumidite(sondeDHumiditeA1,sondeDHumiditeA2);
       affichageDonneesSondesHumidite();
-      adapteNombreArrosages();
 
       if (sensorHumidValue >= limiteSolHumide) {
 
+        niveauSondeDHumidite();
         // Le sol est sec, si sensorHumidValue supérieure à limitesolHumide initial = 600, appel de la fonction relayOn pour ouverir la vanne d'eau:
-        AdapteDureeArrosage(); // Etabli la durée de la pause entre deux arrosages et leur durée respective:
+        sequenceDArrosage(); // aaa = Etabli la durée de la pause entre deux arrosages et leur durée respective: 
         relaisOn = dureeArrosage; // Le relais restera ferm� pour Arrosage, relayOF sera appel� a la fin de ce laps de temps:
         relayOn();
       }
@@ -92,7 +96,7 @@ void loop() {
         dureePause =  (pauseEntreDeuxArrosages * 4 * pauseMultiplicateur);
         transformersoixante(dureePause);
         Serial.println("  ");
-        Serial.print("       Nuit et sol encore humide, entre 2 tests une pause de:   ");
+        Serial.print("       Nuit et sol encore humide, entre 2 tests une pause de:    ");
         afficheTemps();
       }
     } 
@@ -105,7 +109,7 @@ void loop() {
     } // Fin de la boucle du if itsNight = 1:
 
      transformersoixante(dureePause); // appel pour transformer les millisecondes en jours, heures et minutes:
-    Serial.print("       L'Arrosage plus le temps de pause vont durer:            ");
+    Serial.print("       Un prochain cycle dans:                                   ");
     afficheTemps(); //Affichages des temps:
     
   }      
@@ -178,29 +182,38 @@ void afficheTemps() {
   Serial.print(" Mn : ");
   Serial.print(tempsCourrantSc);
   Serial.println(" MiliSec : ");
-  Serial.println("  ");
+  //Serial.println("  ");
 }
 
 void affichageDonneesArrosage() {
 
-  //Serial.println("  ");
-  Serial.print("   Le nombre d'arrosages dèjà effectu�s cette nuit:             ");
+  Serial.println("  ");
+  Serial.print("   Le nombre des Arrosages intermediaires:                       ");
+  Serial.println(nombrePetitsArrosages ); //- 1
+  Serial.print("   Le nombre d'arrosages complets de cette nuit:                 "); 
   if (compteurDArrosagesParNuit > 0){ //Ce compteur debute a 1 pour 0 arrosages:
-    Serial.println(compteurDArrosagesParNuit - 1);
+  Serial.println(compteurDArrosagesParNuit);//  - 1
+    
   }
   else{
     Serial.println(compteurDArrosagesParNuit);
   }
-  Serial.print("   Nombres d'arrosages effectu�s depuis le début du programme:  ");
+  
+  Serial.print("   Le nombres d'arrosages complets depuis le début du programme: ");
   Serial.println(compteurCyclesArrosage);
   Serial.println("  ");
-  Serial.println("  ");
-  Serial.print("   Temps dèjà écoulé:                                           ");
+  Serial.print("   Temps dèjà écoulé:                                            ");
   afficheTemps();// Affichage du temps en heures et minutes:
-  Serial.println("   Nouveau test de la sonde d'humidité:                       ");
-  Serial.print("   Valeur du Photoresistor la nuit, sera sup�rieure �  850:     ");
+  Serial.println("  ");
+  Serial.println("   NOUVEAUX TESTS:                                              ");
+  Serial.println(" -----------------                                             ");
+  Serial.println("  ");
+  Serial.print("   Valeur du Photoresistor la nuit, sera sup�rieure �  850:      ");
   Serial.println (sensorNuitValue);
   Serial.println("  ");
+  
+
+  
 }
 
 void lectureSondesHumidite(int sHA1 , int sHA2){
@@ -239,59 +252,185 @@ void lectureSondesHumidite(int sHA1 , int sHA2){
   }  
 }
 
-void adapteNombreArrosages() { // Si le sol est sec:fixe le nombre d'arrosages par nuit suivant de sec à tr�s sec:
+void niveauSondeDHumidite() { // Fixe le niveau ou sequence d'arrosage en fonction de la valeur lue sur la sonde:
 
   if (nombreArrosages == 9){  // cette valeur qui ne sera jamais atteinte nous permet de ne rentrer dans le if uniquement la premiere fois pour determiner le nombre exact d'arroges pour la  nuit:
     switch (sensorHumidValue) {
       case limiteSolHumide ... 700: //sol sec et 1 arrosage:
         nombreArrosages = 1;
+        niveauSondeHumiditeValue = 1;
         break;
       case 701 ... 850:
         nombreArrosages = 2; //sol très sec et 2 arrosages:
+        niveauSondeHumiditeValue = 2;
         break;
       case 851 ... 1023:
         nombreArrosages = 3; //sol extremement sec et 3 arrosages:
+        niveauSondeHumiditeValue = 3;
         break;
       default: // Sol humide:
         break;
     }
   }
+  //return niveauSondeHumiditeValue;
 }
 
 
-void AdapteDureeArrosage() { // Adapte la durée d'arrosage et du nombre d'arrosages dèja �ffectu�s en fonction de la sonde :
+void sequenceDArrosage() { // Adapte la durée d'arrosage et du nombre d'arrosages dèja �ffectu�s en fonction de la sonde :
+  
   if (sondeA1A2) { // La sonde de plus grande valeur est la sondeA1:
-    switch (nombreArrosages) {
+
+    // Attribue une séquence d'arrosages intermédiaires pour chaque niveau de la valeur lue sur la sonde d'humidité:
+    switch (niveauSondeHumiditeValue) { // Chaque case doit avoir obligatoirement sa fonction sequenceArrosageNiveau définie:
       case 1:
-         dureeArrosage = dureePourArrosage * 7 ; // temps d'arrosage = dureePourArrosage en minutes * 4*1 :
-         dureePause =  (dureeArrosage + (pauseEntreDeuxArrosages * 12)); //   **********************************dans (pauseEntreDeuxArrosages en heures * 12) on testera a nouveau l'humidit� du sol dans:
+        nombreArrosagesIntermediaires = 1;
+        sequenceArrosageA1Niveau1(nombreArrosagesIntermediaires); // 1 pour un seul arrosage intermédiaire:
         break;
       case 2:
-         dureeArrosage = dureePourArrosage * 4 ; // *3*2:
-         dureePause =  (dureeArrosage + (pauseEntreDeuxArrosages * 6 ));// *6 :*60000 *****************:          
+        nombreArrosagesIntermediaires = 3;
+        sequenceArrosageA1Niveau2(nombreArrosagesIntermediaires); // 3 pour trois  arrosages intermédiaires:
         break;
       case 3:
-         dureeArrosage = dureePourArrosage * 3 ; // *3*3:
-         dureePause =  (dureeArrosage+ (pauseEntreDeuxArrosages * 3 )); // *3 : *60000 *******************:
+        nombreArrosagesIntermediaires = 5;
+        sequenceArrosageA1Niveau3(nombreArrosagesIntermediaires); // 5 pour cinq  arrosages intermédiaires:
         break;
     }
   }
   else{
-    switch (nombreArrosages) {// La sonde de plus grande valeur est la sondeA1:
+
+    switch (niveauSondeHumiditeValue) {// La sonde de plus grande valeur est la sondeA1:
       case 1:
-        dureeArrosage = dureePourArrosage * 9 ; // *9*1 :
-        dureePause =  (dureeArrosage + (pauseEntreDeuxArrosages * 12)); // *12 :*60000  *********************:
+        nombreArrosagesIntermediaires = 1;
+        sequenceArrosageA2Niveau1(nombreArrosagesIntermediaires); // 1 pour un seul arrosage intermédiaire:
         break;
       case 2:
-        dureeArrosage = dureePourArrosage * 5 ; // *5*2:
-        dureePause =  (dureeArrosage + (pauseEntreDeuxArrosages * 6 )); // *6 :*60000  *****************:
+        nombreArrosagesIntermediaires = 3;
+        sequenceArrosageA2Niveau2(nombreArrosagesIntermediaires); // 3 pour trois  arrosages intermédiaires:
         break;
       case 3:
-        dureeArrosage = dureePourArrosage * 4 ; // *4*3
-        dureePause =  (dureeArrosage + (pauseEntreDeuxArrosages * 3 )); // *3:*60000  *************:
+        nombreArrosagesIntermediaires = 5;
+        sequenceArrosageA2Niveau3(nombreArrosagesIntermediaires); // 5 pour cinq  arrosages intermédiaires:
+        break;
+    }
+    // return nombreArrosagesIntermediaires ;
+  }
+}
+
+void sequenceArrosageA1Niveau1(byte cp){
+  if (nombrePetitsArrosages < cp){// Ce sont les coeficients determinant la Duree d'Arrosage et la Pause qui suit:
+    switch(nombrePetitsArrosages){
+      case 0:
+        tempsDArrosage(7,6); // 7 fois le comptenu de la variable dureePourArrosage et 6 fois pauseEntreDeuxArrosages:
+        break;
+      default:
         break;
     }
   }
+}
+
+void sequenceArrosageA1Niveau2(byte cp){
+  if (nombrePetitsArrosages < cp){
+    // Serial.println(nombrePetitsArrosages); // *******************************************
+    switch(nombrePetitsArrosages){
+      case 0:
+        tempsDArrosage(4,6);
+        break;
+      case 1:
+        tempsDArrosage(6,6);
+        break;
+      case 2:
+        tempsDArrosage(8,6);
+        break;
+      default:
+        //tempsDArrosage(0,0); // ****************************************
+        break;  
+    }
+  }
+}
+
+void sequenceArrosageA1Niveau3(byte cp){
+  if (nombrePetitsArrosages < cp){
+    switch(nombrePetitsArrosages){
+      case 0:
+        tempsDArrosage(2,6);
+        break;
+      case 1:
+        tempsDArrosage(2,6);
+        break;
+      case 2:
+        tempsDArrosage(2,6);
+        break;
+      case 3:
+        tempsDArrosage(4,6);
+        break;
+      case 4:
+        tempsDArrosage(6,6); 
+        break; 
+      default:
+        break;  
+    }
+  }
+}
+  
+void sequenceArrosageA2Niveau1(byte cp){
+  if (nombrePetitsArrosages < cp){// Ce sont les coeficients determinant la Duree d'Arrosage et la Pause qui suit:
+    switch(nombrePetitsArrosages){
+      case 0:
+        tempsDArrosage(9,6); // 7 fois le comptenu de la variable dureePourArrosage et 6 fois pauseEntreDeuxArrosages:
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+void sequenceArrosageA2Niveau2(byte cp){
+  if (nombrePetitsArrosages < cp){
+    switch(nombrePetitsArrosages){
+      case 0:
+        tempsDArrosage(4,6);
+        break;
+      case 1:
+        tempsDArrosage(5,5);
+        break;
+      case 2:
+        tempsDArrosage(8,8);
+        break;
+      default:
+        break;  
+    }
+  }
+}
+
+void sequenceArrosageA2Niveau3(byte cp){
+  if (nombrePetitsArrosages < cp){
+    switch(nombrePetitsArrosages){
+      case 0:
+        tempsDArrosage(2,3);
+        break;
+      case 1:
+        tempsDArrosage(3,6);
+        break;
+      case 2:
+        tempsDArrosage(4,6);
+        break;
+      case 3:
+        tempsDArrosage(5,6);
+        break;
+      case 4:
+        tempsDArrosage(8,8);
+        break;  
+      default:
+        break;  
+    }
+  }
+}
+  
+void tempsDArrosage( byte coefDureearrosage, byte coefDureePause){ 
+  
+  dureeArrosage = dureePourArrosage * coefDureearrosage ; // temps d'arrosage:
+  dureePause =  (dureeArrosage + (pauseEntreDeuxArrosages * coefDureePause)); // Temps de pause pour arrosages successifs:
+  
 }
 
 void affichageDonneesSondesHumidite(){
@@ -299,62 +438,67 @@ void affichageDonneesSondesHumidite(){
   // * On doit remplacer les deux lignes suivantes en fonction de la carte Arduino:float voltageA2 = sensorDHumiditeValueA2 * (3.3 / 1023.0) / pour une lecture exacte de la tention fournie par la Sonde:
   float voltageA1 = sensorDHumiditeValueA1 * (3.3 / 1023.0); //* pour 5V, 5 / 1023 carte Arduino 5 olts:
   // Affichage de la valeur de A1:
-  Serial.print("       Lecture de la valeur lue sur la sonde A1= 0~1023 :       ");
+  Serial.print("       Lecture de la valeur lue sur la sonde A1= 0~1023 :        ");
   Serial.print(sensorDHumiditeValueA1);
   // et la tention pr�sente aux bornes de la sonde A1:
   Serial.println("  ");
-  Serial.print("       La tention mesur�e aux bornes de la SondeA1 en volts:    ");
+  Serial.print("       La tention mesur�e aux bornes de la SondeA1 en volts:     ");
   Serial.print(voltageA1);
   Serial.println("  ");
   
   float voltageA2 = sensorDHumiditeValueA2 * (3.3 / 1023.0);//* pour 5V, 5 / 1023 carte Arduino 5 volts :
   // Affichage de la valeur de A2:
-  Serial.print("       Lecture valeur lue sur la sonde A2= 0~1023 :             ");
+  Serial.print("       Lecture valeur lue sur la sonde A2= 0~1023 :              ");
   Serial.print(sensorDHumiditeValueA2);
   // et la tention pr�sente aux bornes de la sonde A2:
   Serial.println("  ");
-  Serial.print("       Tention pr�sente aux bornes de la SondeA2 en volts:      ");
+  Serial.print("       Tention pr�sente aux bornes de la SondeA2 en volts:       ");
   Serial.print(voltageA2);
   Serial.println("  ");
 }
 
 void relayOn() {
-  if (compteurDArrosagesParNuit < nombreArrosages + 1) { // ********************************
-    // Il y aura  x Arrosages si le nombre x d'arrosages choisi n'a pas encore �t� atteint:
+
+  if (nombrePetitsArrosages < nombreArrosagesIntermediaires) {
+
+    // Il y aura  x Arrosages tant que nombre d'arrosages determine n'a pas encore �t� atteint:
     vanneOpen = 1;
     digitalWrite(signalRelay, HIGH);  // turn the signalRelay ON	:
     relayOnMillis = millis(); // Memorise le temps de d�but d'arrosage:
     transformersoixante(relayOnMillis);
     Serial.println(" ");
-    Serial.print("       La vanne d'arrosage a été ouverte à:                     ");
+    Serial.print("       La vanne d'arrosage a été ouverte à:                      ");
     afficheTemps();
 
   }
   else {
-    // Le nombre d'arrosages maximal à �t� atteint, on fait une pause de: (pauseEntreDeuxArrosages * 10):
-    // Pour de reprendre le test des sondes en fin de journée suivante:
+    // Si le nombre d'arrosages maximal à �t� atteint, on fait une pause de: (pauseEntreDeuxArrosages * 10):
+    // Pour reprendre le test des sondes en fin de journée suivante:
     dureePause =  (pauseEntreDeuxArrosages * 10 * pauseMultiplicateur); // 10 heures:
     transformersoixante(dureePause);
     Serial.println(" ");
-    Serial.println("  ------------------------------------------------------------");
+    Serial.println("  -------------------------------------------------------------");
+    compteurCyclesArrosage += 1; // Augmentation du compteur d'Arrosages total depuis le d�but du fonctionnement:
+    compteurDArrosagesParNuit +=1; // Augmentation du compteur d'arrosages durant les dernieres 24 heures:
+    //(compteurDArrosagesParNuit +=1) /= nombreArrosagesIntermediaires; // En sortie de boucle, compteurDArrosagesParNuit < à nombreArrosagesIntermediaires:
     Serial.print("   Cette Nuit ");
-    Serial.print(nombreArrosages); 
-    Serial.println(" arrosage(s)  ont eu lieu:            ");
-    Serial.print("  On va patienter et attendre la nuit prochaine, dans environ:  ");
+    Serial.print(compteurDArrosagesParNuit);
+    compteurDArrosagesParNuit = 0; 
+    Serial.println(" arrosage(s) complet(s)  ont eu lieu:            ");
+    Serial.print("  On va patienter et attendre la nuit prochaine, dans environ:   ");
     afficheTemps();
   }
 }
 
 void relayOF() {
+
   // On arr�te la vanne si le temps d'arrosage a �r� effctu�:
-  compteurCyclesArrosage += 1; // Augmentation du compteur d'Arrosages total depuis le d�but du fonctionnement:
+  nombrePetitsArrosages += 1;
   vanneOpen = 0;// M�morise l'�tat de l'�lectrovanne:
-  compteurDArrosagesParNuit += 1; // Augmentation du compteur d'arrosages durant les dernieres 24 heures:
   digitalWrite(signalRelay, LOW);  	// turn the signalRelay OFF:
   tempsfinArrosage = millis(); // Memorise le temps pris � la fin du dernier arrosage:
   transformersoixante(tempsfinArrosage);
-  Serial.println(" ");
-  Serial.print("       La vanne d'arrosage a été fermée à:                      "); 
+  Serial.print("       La vanne d'arrosage a été fermée à:                       "); 
   afficheTemps();
 
   }
