@@ -10,7 +10,7 @@ byte nombreArrosages = 9; // cette valeur qui ne sera jamais atteinte nous perme
 
 // Variables fixes:
 int tempsEntre2TestSondeDHumidite = 180 ; // 240 Minutes Max; Sonde Humidité un test toutes les 3H:
-int tempsEntre2TestLDR = 180 ; // LDR un test toutes les 3 H:
+int tempsEntre2TestLDR = 120 ; // LDR un test toutes les 3 H:
 int tempsEntre2Nuits = 600; // 10Hx60Mn; Après le dernier Arrosage on attend 10 H:
 int limiteSensorNuitValue = 850; // Limite au dessu de laquelle la LDR mesure l'obscurité:
 byte niveauSondeHumiditeValue = 0;
@@ -138,7 +138,7 @@ void dejaNuit() {
   if (nightTrue != 1) {
     // Si la nuit n'a pas encore �t� detect�e une premi�re fois:
     // ceci le premier jour et uniquement jusqu'a la nuit tomb�e, la pause entre deux tests sera de de 1 heure:
-    dureePause = (pauseEntreDeuxArrosages);
+    dureePause = (pauseEntreDeuxArrosages * 60);
 
   }
 }
@@ -288,16 +288,16 @@ void niveauSondeDHumidite() { // Fixe le niveau ou sequence d'arrosage en foncti
 
   if (nombreArrosages == 9){  // cette valeur qui ne sera jamais atteinte nous permet de ne rentrer dans le if uniquement la premiere fois pour determiner le nombre exact d'arroges pour la  nuit:
     switch (sensorHumidValue) {
-      case limiteSolHumide ... 700: //sol sec et 1 arrosage:
+      case limiteSolHumide ... 500: //sol sec et 2+1 arrosage:
         nombreArrosages = 1;
         niveauSondeHumiditeValue = 1;
         break;
-      case 701 ... 850:
-        nombreArrosages = 2; //sol très sec et 2 arrosages:
+      case 501 ... 850:
+        nombreArrosages = 2; //sol très sec et 4+2 arrosages:
         niveauSondeHumiditeValue = 2;
         break;
       case 851 ... 1023:
-        nombreArrosages = 3; //sol extremement sec et 3 arrosages:
+        nombreArrosages = 3; //sol extremement sec et 6+2 arrosages:
         niveauSondeHumiditeValue = 3;
         break;
       default: // Sol humide:
@@ -314,16 +314,16 @@ void sequenceDArrosage() { // Adapte la durée d'arrosage et du nombre d'arrosag
     // Attribue une séquence d'arrosages intermédiaires pour chaque niveau de la valeur lue sur la sonde d'humidité:
     switch (niveauSondeHumiditeValue) { // Chaque case doit avoir obligatoirement sa fonction sequenceArrosageNiveau définie:
       case 1:
-        nombreArrosagesIntermediaires = 3;
-        sequenceArrosageA1Niveau1(nombreArrosagesIntermediaires); // 1 pour un seul arrosage intermédiaire:
+        nombreArrosagesIntermediaires = 5; // j'ai change tous les niveau pou le niveau2
+        sequenceArrosageA1Niveau2(nombreArrosagesIntermediaires); // 1 pour un seul arrosage intermédiaire:
         break;
       case 2:
         nombreArrosagesIntermediaires = 5;
         sequenceArrosageA1Niveau2(nombreArrosagesIntermediaires); // 3 pour trois  arrosages intermédiaires:
         break;
       case 3:
-        nombreArrosagesIntermediaires = 6;
-        sequenceArrosageA1Niveau3(nombreArrosagesIntermediaires); // 5 pour cinq  arrosages intermédiaires:
+        nombreArrosagesIntermediaires = 5;
+        sequenceArrosageA1Niveau2(nombreArrosagesIntermediaires); // 5 pour cinq  arrosages intermédiaires:
         break;
     }
   }
@@ -331,16 +331,16 @@ void sequenceDArrosage() { // Adapte la durée d'arrosage et du nombre d'arrosag
 
     switch (niveauSondeHumiditeValue) {// La sonde de plus grande valeur est la sondeA1:
       case 1:
-        nombreArrosagesIntermediaires = 3;
-        sequenceArrosageA2Niveau1(nombreArrosagesIntermediaires); // 1 pour un seul arrosage intermédiaire:
+        nombreArrosagesIntermediaires = 5;
+        sequenceArrosageA1Niveau2(nombreArrosagesIntermediaires); // 1 pour un seul arrosage intermédiaire:
         break;
       case 2:
         nombreArrosagesIntermediaires = 5;
-        sequenceArrosageA2Niveau2(nombreArrosagesIntermediaires); // 3 pour trois  arrosages intermédiaires:
+        sequenceArrosageA1Niveau2(nombreArrosagesIntermediaires); // 3 pour trois  arrosages intermédiaires:
         break;
       case 3:
-        nombreArrosagesIntermediaires = 6;
-        sequenceArrosageA2Niveau3(nombreArrosagesIntermediaires); // 5 pour cinq  arrosages intermédiaires:
+        nombreArrosagesIntermediaires = 5;
+        sequenceArrosageA1Niveau2(nombreArrosagesIntermediaires); // 5 pour cinq  arrosages intermédiaires:
         break;
     }
   }
@@ -369,19 +369,19 @@ void sequenceArrosageA1Niveau2(byte cp){
     // Serial.println(nombrePetitsArrosages); // *******************************************
     switch(nombrePetitsArrosages){
       case 0:
-        tempsDArrosage(4,20);
+        tempsDArrosage(1,20);
         break;
       case 1:
-        tempsDArrosage(3,60);
+        tempsDArrosage(1,60);
         break;
       case 2:
-        tempsDArrosage(4,480);
+        tempsDArrosage(2,60);
         break;
       case 3:
-        tempsDArrosage(5,60);
+        tempsDArrosage(2,60);
         break;
       case 4:
-        tempsDArrosage(3,1);
+        tempsDArrosage(2,1);
         break;  
       default:
     
