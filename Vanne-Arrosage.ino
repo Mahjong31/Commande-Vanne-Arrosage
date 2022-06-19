@@ -23,12 +23,12 @@
 // 3mn 15mn,pause entre 2 arrosages =20mn,pause après 5 arrosages =150mn, pause nuit arrosage =20mn, pause jour =40mn, nuit sans arrosage 80mn
 
 // Ces variables peuvent être changés pour adapteer le programme a nos souhaits de comportement sur le laps de temps d'ouveture et fermeture de l'electrovanne et l'attente avant nouveau cycle :
-int dureePourArrosage = 32; // Durée initiale en minutes servant a calculer le temps d'arrosage qui sera calculé:
-unsigned long dureeArrosage = 0; //Contiendra la durée en secondes effectivement utilisée pour l'arrosage:
-byte ajusteSondeA1 = 90; // la Sonde A1 présente toujours une valeur supérieure à celle de A2 de ~200:
+int dureePourArrosage = 60; // Durée initiale en minutes servant a calculer le temps d'arrosage qui sera calculé:
+unsigned long dureeArrosage = -60; //Contiendra la durée en secondes effectivement utilisée pour l'arrosage:
+byte ajusteSondeA1 = 120; // la Sonde A1 présente toujours une valeur supérieure à celle de A2 de -60:
 byte nombreArrosages = 4; // Le nombre d'arrosages par nuit sera au maximum de :
 byte pauseMultiplicateur = 4;//4; // Multiplie la,  variable " pauseEntreDeuxArrosages " pour obtenire l'intervale au tour duquel se repéte le test sur le photoresistor durant le jour, ici toutes les 5 heures:
-int limiteValeurSonde = 660; // Valeur limite au dessus de laquelle le sol est consideré sec pour ouverture de l'electrovanne:
+int limiteValeurSonde = 650; // Valeur limite au dessus de laquelle le sol est consideré sec pour ouverture de l'electrovanne:
 unsigned long pauseEntreDeuxArrosages = 7200000; // ici 2 heure  qui est le temps de la pause entre deux arrosages ":
 
 
@@ -105,6 +105,7 @@ void loop() {
 
         if (solHumideA2 == 0) {
           changeDureedArrosage(); // Si le sol est humide sur la sonde A2 on change la durée d'arrosage en fonction du nombre d'arrosages éffectués:
+          dureeArrosage = (dureeArrosage * 4) / 5;
         }
         else {
           changeDureedArrosage(); // Si le sol est humide sur la la sonde A1 uniquement on change différament  la durée d'arrosage en fonction aussi du nombre d'arrosages éffectués:
